@@ -43,6 +43,39 @@ class ConversationMetadata(BaseModel):
     message_count: int
 
 
+def build_conversation_context(conversation: dict, max_turns: int = 3) -> List[Dict[str, str]]:
+    """
+    Build message history from previous turns for multi-turn context.
+
+    Args:
+        conversation: The conversation dict with messages
+        max_turns: Maximum number of previous turns to include
+
+    Returns:
+        List of message dicts with role and content
+    """
+    context = []
+    messages = conversation.get("messages", [])
+
+    # Get last N turns (user + assistant pairs)
+    # Each turn = 2 messages, so get last max_turns * 2 messages
+    recent_messages = messages[-(max_turns * 2):]
+
+    for msg in recent_messages:
+        if msg["role"] == "user":
+            context.append({"role": "user", "content": msg["content"]})
+        elif msg["role"] == "assistant" and msg.get("stage3"):
+            # Include the final council response as assistant context
+            stage3_response = msg["stage3"].get("response", "")
+            if stage3_response:
+                context.append({
+                    "role": "assistant",
+                    "content": stage3_response
+                })
+
+    return context
+
+
 class Conversation(BaseModel):
     """Full conversation with all messages."""
     id: str
@@ -94,6 +127,9 @@ async def send_message(conversation_id: str, request: SendMessageRequest):
     # Check if this is the first message
     is_first_message = len(conversation["messages"]) == 0
 
+    # Build conversation context from previous turns (before adding new message)
+    conversation_history = build_conversation_context(conversation, max_turns=3)
+
     # Add user message
     storage.add_user_message(conversation_id, request.content)
 
@@ -102,9 +138,10 @@ async def send_message(conversation_id: str, request: SendMessageRequest):
         title = await generate_conversation_title(request.content)
         storage.update_conversation_title(conversation_id, title)
 
-    # Run the 3-stage council process
+    # Run the 3-stage council process with conversation history
     stage1_results, stage2_results, stage3_result, metadata = await run_full_council(
-        request.content
+        request.content,
+        conversation_history=conversation_history if conversation_history else None
     )
 
     # Add assistant message with all stages
@@ -138,6 +175,9 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
     # Check if this is the first message
     is_first_message = len(conversation["messages"]) == 0
 
+    # Build conversation context from previous turns (before adding new message)
+    conversation_history = build_conversation_context(conversation, max_turns=3)
+
     async def event_generator():
         try:
             # Add user message
@@ -148,9 +188,12 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
             if is_first_message:
                 title_task = asyncio.create_task(generate_conversation_title(request.content))
 
-            # Stage 1: Collect responses
+            # Stage 1: Collect responses (with conversation history for context)
             yield f"data: {json.dumps({'type': 'stage1_start'})}\n\n"
-            stage1_results = await stage1_collect_responses(request.content)
+            stage1_results = await stage1_collect_responses(
+                request.content,
+                conversation_history if conversation_history else None
+            )
             yield f"data: {json.dumps({'type': 'stage1_complete', 'data': stage1_results})}\n\n"
 
             # Stage 2: Collect rankings

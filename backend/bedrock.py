@@ -1,9 +1,12 @@
 """Amazon Bedrock API client for making LLM requests."""
 
 import asyncio
+import logging
 import boto3
 from typing import List, Dict, Any, Optional
 from .config import AWS_REGION
+
+logger = logging.getLogger("llm_council.bedrock")
 
 
 def _get_bedrock_client():
@@ -62,7 +65,7 @@ def _sync_query_model(
         }
 
     except Exception as e:
-        print(f"Error querying Bedrock model {model}: {e}")
+        logger.error(f"Error querying Bedrock model {model}: {e}", exc_info=True)
         return None
 
 
@@ -83,6 +86,7 @@ async def query_model(
         Response dict with 'content' and optional 'reasoning_details', or None if failed
     """
     client = _get_bedrock_client()
+    logger.debug(f"Querying Bedrock model: {model} with {len(messages)} messages")
 
     # Run synchronous boto3 call in thread pool
     try:
@@ -90,9 +94,13 @@ async def query_model(
             asyncio.to_thread(_sync_query_model, client, model, messages),
             timeout=timeout
         )
+        if result:
+            logger.debug(f"Bedrock model {model} responded ({len(result.get('content', ''))} chars)")
+        else:
+            logger.warning(f"Bedrock model {model} returned None")
         return result
     except asyncio.TimeoutError:
-        print(f"Timeout querying Bedrock model {model}")
+        logger.error(f"Timeout querying Bedrock model {model} after {timeout}s")
         return None
 
 

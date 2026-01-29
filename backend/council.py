@@ -1,7 +1,10 @@
 """3-stage LLM Council orchestration."""
 
+import logging
 from typing import List, Dict, Any, Tuple
 from .config import COUNCIL_MODELS, CHAIRMAN_MODEL, API_PROVIDER
+
+logger = logging.getLogger("llm_council.council")
 
 # Dynamic import based on provider
 if API_PROVIDER == "bedrock":
@@ -10,17 +13,29 @@ else:
     from .openrouter import query_models_parallel, query_model
 
 
-async def stage1_collect_responses(user_query: str) -> List[Dict[str, Any]]:
+async def stage1_collect_responses(
+    user_query: str,
+    conversation_history: List[Dict[str, str]] = None
+) -> List[Dict[str, Any]]:
     """
     Stage 1: Collect individual responses from all council models.
 
     Args:
         user_query: The user's question
+        conversation_history: Optional list of previous messages for multi-turn context
 
     Returns:
         List of dicts with 'model' and 'response' keys
     """
-    messages = [{"role": "user", "content": user_query}]
+    # Build messages with history if provided
+    if conversation_history:
+        messages = conversation_history + [{"role": "user", "content": user_query}]
+        logger.info(f"Stage 1: Using {len(conversation_history)} previous messages as context")
+    else:
+        messages = [{"role": "user", "content": user_query}]
+        logger.info("Stage 1: Starting fresh (no conversation history)")
+
+    logger.debug(f"Stage 1: Querying {len(COUNCIL_MODELS)} models")
 
     # Query all models in parallel
     responses = await query_models_parallel(COUNCIL_MODELS, messages)
@@ -33,7 +48,10 @@ async def stage1_collect_responses(user_query: str) -> List[Dict[str, Any]]:
                 "model": model,
                 "response": response.get('content', '')
             })
+        else:
+            logger.warning(f"Stage 1: Model {model} failed to respond")
 
+    logger.info(f"Stage 1 complete: {len(stage1_results)}/{len(COUNCIL_MODELS)} models responded")
     return stage1_results
 
 
@@ -99,6 +117,8 @@ Now provide your evaluation and ranking:"""
 
     messages = [{"role": "user", "content": ranking_prompt}]
 
+    logger.info(f"Stage 2: Collecting rankings for {len(stage1_results)} responses")
+
     # Get rankings from all council models in parallel
     responses = await query_models_parallel(COUNCIL_MODELS, messages)
 
@@ -113,7 +133,11 @@ Now provide your evaluation and ranking:"""
                 "ranking": full_text,
                 "parsed_ranking": parsed
             })
+            logger.debug(f"Stage 2: {model} ranked: {parsed}")
+        else:
+            logger.warning(f"Stage 2: Model {model} failed to provide ranking")
 
+    logger.info(f"Stage 2 complete: {len(stage2_results)}/{len(COUNCIL_MODELS)} rankings collected")
     return stage2_results, label_to_model
 
 
@@ -163,19 +187,24 @@ Provide a clear, well-reasoned final answer that represents the council's collec
 
     messages = [{"role": "user", "content": chairman_prompt}]
 
+    logger.info(f"Stage 3: Chairman ({CHAIRMAN_MODEL}) synthesizing final response")
+
     # Query the chairman model
     response = await query_model(CHAIRMAN_MODEL, messages)
 
     if response is None:
         # Fallback if chairman fails
+        logger.error(f"Stage 3: Chairman model {CHAIRMAN_MODEL} failed to respond!")
         return {
             "model": CHAIRMAN_MODEL,
             "response": "Error: Unable to generate final synthesis."
         }
 
+    content = response.get('content', '')
+    logger.info(f"Stage 3 complete: Chairman synthesized {len(content)} chars")
     return {
         "model": CHAIRMAN_MODEL,
-        "response": response.get('content', '')
+        "response": content
     }
 
 
@@ -298,21 +327,30 @@ Title:"""
     return title
 
 
-async def run_full_council(user_query: str) -> Tuple[List, List, Dict, Dict]:
+async def run_full_council(
+    user_query: str,
+    conversation_history: List[Dict[str, str]] = None
+) -> Tuple[List, List, Dict, Dict]:
     """
     Run the complete 3-stage council process.
 
     Args:
         user_query: The user's question
+        conversation_history: Optional list of previous messages for multi-turn context
 
     Returns:
         Tuple of (stage1_results, stage2_results, stage3_result, metadata)
     """
-    # Stage 1: Collect individual responses
-    stage1_results = await stage1_collect_responses(user_query)
+    logger.info(f"=== Council session starting ===")
+    logger.info(f"Query: {user_query[:100]}{'...' if len(user_query) > 100 else ''}")
+    logger.info(f"Provider: {API_PROVIDER}, Models: {len(COUNCIL_MODELS)}, Chairman: {CHAIRMAN_MODEL}")
+
+    # Stage 1: Collect individual responses (with history for context)
+    stage1_results = await stage1_collect_responses(user_query, conversation_history)
 
     # If no models responded successfully, return error
     if not stage1_results:
+        logger.error("All models failed to respond in Stage 1!")
         return [], [], {
             "model": "error",
             "response": "All models failed to respond. Please try again."
@@ -337,4 +375,5 @@ async def run_full_council(user_query: str) -> Tuple[List, List, Dict, Dict]:
         "aggregate_rankings": aggregate_rankings
     }
 
+    logger.info(f"=== Council session complete ===")
     return stage1_results, stage2_results, stage3_result, metadata

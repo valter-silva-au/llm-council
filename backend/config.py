@@ -1,9 +1,22 @@
 """Configuration for the LLM Council."""
 
 import os
+import logging
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Logging configuration
+DEBUG_MODE = os.getenv("DEBUG", "false").lower() == "true"
+LOG_LEVEL = logging.DEBUG if DEBUG_MODE else logging.INFO
+
+logging.basicConfig(
+    level=LOG_LEVEL,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+
+logger = logging.getLogger("llm_council")
 
 # API Provider selection: "openrouter" or "bedrock"
 API_PROVIDER = os.getenv("API_PROVIDER", "openrouter")
