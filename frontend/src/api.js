@@ -112,4 +112,27 @@ export const api = {
       }
     }
   },
+
+  /**
+   * Synthesize speech for the latest Stage 3 response.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} voiceId - Polly voice ID (default: "Matthew")
+   * @returns {Promise<Blob>} - Audio blob
+   */
+  async speakResponse(conversationId, voiceId = 'Matthew') {
+    const response = await fetch(
+      `${API_BASE}/api/conversations/${conversationId}/speak`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ voice_id: voiceId }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to synthesize speech');
+    }
+    return response.blob();
+  },
 };

@@ -11,6 +11,7 @@ import asyncio
 
 from . import storage
 from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
+from .polly import synthesize_speech
 
 app = FastAPI(title="LLM Council API")
 
@@ -190,6 +191,59 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
+        }
+    )
+
+
+class SpeakRequest(BaseModel):
+    """Request to synthesize speech."""
+    voice_id: str = "Matthew"
+
+
+@app.post("/api/conversations/{conversation_id}/speak")
+async def speak_response(conversation_id: str, request: SpeakRequest = None):
+    """
+    Synthesize speech for the latest Stage 3 response.
+    Returns MP3 audio.
+    """
+    if request is None:
+        request = SpeakRequest()
+
+    # Get the conversation
+    conversation = storage.get_conversation(conversation_id)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Find the last assistant message
+    assistant_messages = [
+        msg for msg in conversation["messages"]
+        if msg.get("role") == "assistant"
+    ]
+
+    if not assistant_messages:
+        raise HTTPException(status_code=404, detail="No assistant response found")
+
+    last_message = assistant_messages[-1]
+
+    # Extract Stage 3 content
+    stage3 = last_message.get("stage3", {})
+    text = stage3.get("response", "")
+
+    if not text:
+        raise HTTPException(status_code=400, detail="No Stage 3 response to synthesize")
+
+    # Synthesize speech
+    audio_bytes = await synthesize_speech(text, voice_id=request.voice_id)
+
+    if audio_bytes is None:
+        raise HTTPException(status_code=500, detail="Failed to synthesize speech")
+
+    # Return audio as streaming response
+    return StreamingResponse(
+        iter([audio_bytes]),
+        media_type="audio/mpeg",
+        headers={
+            "Content-Disposition": "inline; filename=response.mp3"
         }
     )
 
