@@ -24,7 +24,12 @@
   font-weight: 600;
 }
 
-.read-aloud-btn {
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.action-btn {
   padding: 6px 12px;
   font-size: 12px;
   background: #2d8a2d;
@@ -35,20 +40,20 @@
   transition: background 0.2s;
 }
 
-.read-aloud-btn:hover:not(:disabled) {
+.action-btn:hover:not(:disabled) {
   background: #246b24;
 }
 
-.read-aloud-btn:disabled {
+.action-btn:disabled {
   background: #999;
   cursor: not-allowed;
 }
 
-.read-aloud-btn.playing {
+.action-btn.read-aloud.playing {
   background: #d9534f;
 }
 
-.read-aloud-btn.playing:hover {
+.action-btn.read-aloud.playing:hover {
   background: #c9302c;
 }
 

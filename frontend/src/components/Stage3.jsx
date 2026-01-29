@@ -7,11 +7,32 @@ export default function Stage3({ finalResponse, conversationId }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [copied, setCopied] = useState(false);
   const audioRef = useRef(null);
 
   if (!finalResponse) {
     return null;
   }
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(finalResponse.response);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  const handleDownload = () => {
+    const blob = new Blob([finalResponse.response], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'council-response.md';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const handleReadAloud = async () => {
     if (!conversationId) return;
@@ -56,14 +77,30 @@ export default function Stage3({ finalResponse, conversationId }) {
           <div className="chairman-label">
             Chairman: {finalResponse.model.split('/')[1] || finalResponse.model}
           </div>
-          <button
-            className={`read-aloud-btn ${isPlaying ? 'playing' : ''}`}
-            onClick={handleReadAloud}
-            disabled={isLoading}
-            title={isPlaying ? 'Stop' : 'Read Aloud'}
-          >
-            {isLoading ? 'Loading...' : isPlaying ? 'Stop' : 'Read Aloud'}
-          </button>
+          <div className="action-buttons">
+            <button
+              className="action-btn"
+              onClick={handleCopy}
+              title="Copy to clipboard"
+            >
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+            <button
+              className="action-btn"
+              onClick={handleDownload}
+              title="Download as Markdown"
+            >
+              Download
+            </button>
+            <button
+              className={`action-btn read-aloud ${isPlaying ? 'playing' : ''}`}
+              onClick={handleReadAloud}
+              disabled={isLoading}
+              title={isPlaying ? 'Stop' : 'Read Aloud'}
+            >
+              {isLoading ? 'Loading...' : isPlaying ? 'Stop' : 'Read Aloud'}
+            </button>
+          </div>
         </div>
         {error && <div className="speech-error">{error}</div>}
         <div className="final-text markdown-content">
