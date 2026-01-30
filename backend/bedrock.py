@@ -8,6 +8,22 @@ from .config import AWS_REGION
 
 logger = logging.getLogger("llm_council.bedrock")
 
+# Models that support extended thinking
+THINKING_MODELS = [
+    "anthropic.claude-opus-4-5",
+    "anthropic.claude-sonnet-4",
+    "anthropic.claude-sonnet-4-5",
+    "anthropic.claude-haiku-4-5",
+    "anthropic.claude-3-7-sonnet",
+    "us.anthropic.claude-opus-4-5",
+    "us.anthropic.claude-sonnet-4",
+    "us.anthropic.claude-sonnet-4-5",
+    "us.anthropic.claude-haiku-4-5",
+]
+
+# Default thinking budget (tokens)
+THINKING_BUDGET_TOKENS = 4000
+
 
 def _get_bedrock_client():
     """Create a Bedrock Runtime client."""
@@ -33,21 +49,49 @@ def _convert_messages_to_bedrock_format(messages: List[Dict[str, str]]) -> List[
     return bedrock_messages
 
 
+def _supports_thinking(model: str) -> bool:
+    """Check if model supports extended thinking."""
+    model_lower = model.lower()
+    for thinking_model in THINKING_MODELS:
+        if thinking_model.lower() in model_lower:
+            return True
+    return False
+
+
 def _sync_query_model(
     client,
     model: str,
-    messages: List[Dict[str, str]]
+    messages: List[Dict[str, str]],
+    enable_thinking: bool = True
 ) -> Optional[Dict[str, Any]]:
     """
     Synchronous model query (runs in thread pool).
+    Enables extended thinking for supported Claude models.
     """
     try:
         bedrock_messages = _convert_messages_to_bedrock_format(messages)
 
-        response = client.converse(
-            modelId=model,
-            messages=bedrock_messages
-        )
+        # Build request parameters
+        request_params = {
+            "modelId": model,
+            "messages": bedrock_messages,
+        }
+
+        # Enable thinking for supported models
+        if enable_thinking and _supports_thinking(model):
+            logger.info(f"Enabling extended thinking for {model} (budget: {THINKING_BUDGET_TOKENS} tokens)")
+            request_params["additionalModelRequestFields"] = {
+                "thinking": {
+                    "type": "enabled",
+                    "budget_tokens": THINKING_BUDGET_TOKENS
+                }
+            }
+            # Extended thinking requires higher max_tokens
+            request_params["inferenceConfig"] = {
+                "maxTokens": 16000
+            }
+
+        response = client.converse(**request_params)
 
         # Extract content from Bedrock response
         output_message = response.get('output', {}).get('message', {})
@@ -55,16 +99,28 @@ def _sync_query_model(
 
         # Bedrock returns content as a list of blocks
         content_text = ''
+        thinking_text = ''
         for block in content_list:
             if 'text' in block:
                 content_text += block['text']
+            # Capture thinking blocks if present
+            if 'thinking' in block:
+                thinking_text += block.get('thinking', '')
+
+        if thinking_text:
+            logger.debug(f"Model {model} used extended thinking ({len(thinking_text)} chars)")
 
         return {
             'content': content_text,
-            'reasoning_details': None  # Bedrock doesn't have this field
+            'reasoning_details': thinking_text if thinking_text else None
         }
 
     except Exception as e:
+        error_str = str(e)
+        # If thinking fails, retry without it
+        if enable_thinking and ('thinking' in error_str.lower() or 'validation' in error_str.lower()):
+            logger.warning(f"Extended thinking not supported for {model}, retrying without it")
+            return _sync_query_model(client, model, messages, enable_thinking=False)
         logger.error(f"Error querying Bedrock model {model}: {e}", exc_info=True)
         return None
 

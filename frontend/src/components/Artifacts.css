@@ -117,6 +117,11 @@
   text-overflow: ellipsis;
 }
 
+.artifact-buttons {
+  display: flex;
+  gap: 4px;
+}
+
 .artifact-download-btn {
   display: flex;
   align-items: center;
@@ -130,10 +135,33 @@
   transition: all 0.15s ease;
 }
 
-.artifact-download-btn:hover {
+.artifact-download-btn:hover:not(:disabled) {
   background: #3d3d54;
   color: #fff;
   border-color: #4d4d64;
+}
+
+.artifact-download-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.artifact-download-btn.audio {
+  border-color: #4a5568;
+}
+
+.artifact-download-btn.audio:hover:not(:disabled) {
+  background: #4a5568;
+  border-color: #5a6578;
+}
+
+.mini-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #3d3d54;
+  border-top-color: #808090;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
 /* Scrollbar styling */

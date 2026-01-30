@@ -114,12 +114,13 @@ export const api = {
   },
 
   /**
-   * Synthesize speech for the latest Stage 3 response.
+   * Synthesize speech for a Stage 3 response.
    * @param {string} conversationId - The conversation ID
+   * @param {number} messageIndex - Optional message index (-1 for latest, default: -1)
    * @param {string} voiceId - Polly voice ID (default: "Matthew")
    * @returns {Promise<Blob>} - Audio blob
    */
-  async speakResponse(conversationId, voiceId = 'Matthew') {
+  async speakResponse(conversationId, messageIndex = -1, voiceId = 'Matthew') {
     const response = await fetch(
       `${API_BASE}/api/conversations/${conversationId}/speak`,
       {
@@ -127,7 +128,7 @@ export const api = {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ voice_id: voiceId }),
+        body: JSON.stringify({ voice_id: voiceId, message_index: messageIndex }),
       }
     );
     if (!response.ok) {

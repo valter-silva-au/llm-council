@@ -4,6 +4,7 @@ import Stage1 from './Stage1';
 import Stage2 from './Stage2';
 import Stage3 from './Stage3';
 import Artifacts from './Artifacts';
+import { useAudio } from '../contexts/AudioContext';
 import './ChatInterface.css';
 
 export default function ChatInterface({
@@ -13,6 +14,7 @@ export default function ChatInterface({
 }) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
+  const { autoReadEnabled, toggleAutoRead, isPlaying, stopPlayback } = useAudio();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -49,8 +51,49 @@ export default function ChatInterface({
     );
   }
 
+  // Count assistant messages for indexing
+  const getAssistantMessageIndex = (msgIndex) => {
+    let count = 0;
+    for (let i = 0; i < msgIndex; i++) {
+      if (conversation?.messages[i]?.role === 'assistant') {
+        count++;
+      }
+    }
+    return count;
+  };
+
   return (
     <div className="chat-interface">
+      {conversation && conversation.messages.length > 0 && (
+        <div className="chat-header">
+          <div className="auto-read-toggle">
+            <button
+              className={`toggle-btn ${autoReadEnabled ? 'active' : ''}`}
+              onClick={toggleAutoRead}
+              title={autoReadEnabled ? 'Disable auto-read' : 'Enable auto-read'}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                {autoReadEnabled && (
+                  <>
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                  </>
+                )}
+              </svg>
+              Auto-Read {autoReadEnabled ? 'ON' : 'OFF'}
+            </button>
+            {isPlaying && (
+              <button className="stop-btn" onClick={stopPlayback} title="Stop playback">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="6" width="12" height="12" />
+                </svg>
+                Stop
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       <div className="messages-container">
         {conversation.messages.length === 0 ? (
           <div className="empty-state">
@@ -104,7 +147,13 @@ export default function ChatInterface({
                       <span>Running Stage 3: Final synthesis...</span>
                     </div>
                   )}
-                  {msg.stage3 && <Stage3 finalResponse={msg.stage3} conversationId={conversation.id} />}
+                  {msg.stage3 && (
+                    <Stage3
+                      finalResponse={msg.stage3}
+                      conversationId={conversation.id}
+                      messageIndex={getAssistantMessageIndex(index)}
+                    />
+                  )}
                 </div>
               )}
             </div>

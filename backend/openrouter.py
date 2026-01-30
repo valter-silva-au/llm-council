@@ -7,6 +7,18 @@ from .config import OPENROUTER_API_KEY, OPENROUTER_API_URL
 
 logger = logging.getLogger("llm_council.openrouter")
 
+# Enable web search for real-time information
+ENABLE_WEB_SEARCH = True
+
+# Models that support extended thinking/reasoning
+REASONING_MODELS = [
+    "anthropic/claude",  # Claude models support thinking
+    "openai/o1",         # O1 models have built-in reasoning
+    "openai/o3",         # O3 models have built-in reasoning
+    "deepseek/deepseek-r1",  # DeepSeek R1 has CoT
+    "google/gemini-2.5-pro",  # Gemini 2.5 has thinking
+]
+
 
 async def query_model(
     model: str,
@@ -33,6 +45,17 @@ async def query_model(
         "model": model,
         "messages": messages,
     }
+
+    # Enable web search for real-time information
+    if ENABLE_WEB_SEARCH:
+        payload["plugins"] = [{"id": "web"}]
+        logger.debug(f"Web search enabled for {model}")
+
+    # Check if model supports extended reasoning
+    model_lower = model.lower()
+    supports_reasoning = any(rm in model_lower for rm in REASONING_MODELS)
+    if supports_reasoning:
+        logger.debug(f"Model {model} supports extended reasoning")
 
     logger.debug(f"Querying OpenRouter model: {model} with {len(messages)} messages")
 

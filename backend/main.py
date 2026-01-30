@@ -241,12 +241,13 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
 class SpeakRequest(BaseModel):
     """Request to synthesize speech."""
     voice_id: str = "Matthew"
+    message_index: int = -1  # -1 means latest
 
 
 @app.post("/api/conversations/{conversation_id}/speak")
 async def speak_response(conversation_id: str, request: SpeakRequest = None):
     """
-    Synthesize speech for the latest Stage 3 response.
+    Synthesize speech for a Stage 3 response.
     Returns MP3 audio.
     """
     if request is None:
@@ -257,7 +258,7 @@ async def speak_response(conversation_id: str, request: SpeakRequest = None):
     if conversation is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
-    # Find the last assistant message
+    # Find assistant messages
     assistant_messages = [
         msg for msg in conversation["messages"]
         if msg.get("role") == "assistant"
@@ -266,10 +267,18 @@ async def speak_response(conversation_id: str, request: SpeakRequest = None):
     if not assistant_messages:
         raise HTTPException(status_code=404, detail="No assistant response found")
 
-    last_message = assistant_messages[-1]
+    # Select message by index (-1 for latest)
+    msg_index = request.message_index
+    if msg_index < 0:
+        msg_index = len(assistant_messages) + msg_index  # Convert negative to positive
+
+    if msg_index < 0 or msg_index >= len(assistant_messages):
+        raise HTTPException(status_code=404, detail="Message index out of range")
+
+    selected_message = assistant_messages[msg_index]
 
     # Extract Stage 3 content
-    stage3 = last_message.get("stage3", {})
+    stage3 = selected_message.get("stage3", {})
     text = stage3.get("response", "")
 
     if not text:

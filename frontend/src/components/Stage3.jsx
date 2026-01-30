@@ -1,14 +1,23 @@
-import { useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { useAudio } from '../contexts/AudioContext';
 import { api } from '../api';
 import './Stage3.css';
 
-export default function Stage3({ finalResponse, conversationId }) {
-  const [isPlaying, setIsPlaying] = useState(false);
+export default function Stage3({ finalResponse, conversationId, messageIndex = 0 }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
-  const audioRef = useRef(null);
+  const [hasAutoPlayed, setHasAutoPlayed] = useState(false);
+  const { autoReadEnabled, queueAudio, playResponse, isPlaying, currentlyPlaying } = useAudio();
+
+  // Auto-read when stage3 first appears and auto-read is enabled
+  useEffect(() => {
+    if (autoReadEnabled && finalResponse && !hasAutoPlayed && conversationId) {
+      setHasAutoPlayed(true);
+      queueAudio(conversationId, messageIndex);
+    }
+  }, [autoReadEnabled, finalResponse, hasAutoPlayed, conversationId, messageIndex, queueAudio]);
 
   if (!finalResponse) {
     return null;
@@ -37,37 +46,21 @@ export default function Stage3({ finalResponse, conversationId }) {
   const handleReadAloud = async () => {
     if (!conversationId) return;
 
-    // If already playing, stop
-    if (isPlaying && audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      setIsPlaying(false);
-      return;
-    }
-
+    // If currently playing this response, it will be handled by the context
     setIsLoading(true);
     setError(null);
 
     try {
-      const audioBlob = await api.speakResponse(conversationId);
-      const audioUrl = URL.createObjectURL(audioBlob);
-
-      if (audioRef.current) {
-        audioRef.current.src = audioUrl;
-        audioRef.current.play();
-        setIsPlaying(true);
-      }
+      await playResponse(conversationId, messageIndex);
     } catch (err) {
-      setError('Failed to synthesize speech. Check AWS credentials.');
+      setError('Failed to synthesize speech.');
       console.error('Speech synthesis error:', err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleAudioEnded = () => {
-    setIsPlaying(false);
-  };
+  const isCurrentlyPlaying = isPlaying && currentlyPlaying === conversationId;
 
   return (
     <div className="stage stage3">
@@ -93,12 +86,12 @@ export default function Stage3({ finalResponse, conversationId }) {
               Download
             </button>
             <button
-              className={`action-btn read-aloud ${isPlaying ? 'playing' : ''}`}
+              className={`action-btn read-aloud ${isCurrentlyPlaying ? 'playing' : ''}`}
               onClick={handleReadAloud}
               disabled={isLoading}
-              title={isPlaying ? 'Stop' : 'Read Aloud'}
+              title={isCurrentlyPlaying ? 'Playing...' : 'Read Aloud'}
             >
-              {isLoading ? 'Loading...' : isPlaying ? 'Stop' : 'Read Aloud'}
+              {isLoading ? 'Loading...' : isCurrentlyPlaying ? 'Playing...' : 'Read Aloud'}
             </button>
           </div>
         </div>
@@ -106,7 +99,6 @@ export default function Stage3({ finalResponse, conversationId }) {
         <div className="final-text markdown-content">
           <ReactMarkdown>{finalResponse.response}</ReactMarkdown>
         </div>
-        <audio ref={audioRef} onEnded={handleAudioEnded} style={{ display: 'none' }} />
       </div>
     </div>
   );
