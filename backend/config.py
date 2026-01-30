@@ -33,6 +33,7 @@ OPENROUTER_COUNCIL_MODELS = [
     "x-ai/grok-4",
 ]
 OPENROUTER_CHAIRMAN_MODEL = "google/gemini-3-pro-preview"
+OPENROUTER_TITLE_MODEL = "google/gemini-2.5-flash"  # Fast model for title generation
 
 # Amazon Bedrock configuration
 AWS_REGION = os.getenv("AWS_REGION", "us-west-2")
@@ -47,14 +48,17 @@ BEDROCK_COUNCIL_MODELS = [
 ]
 # Chairman: Nova Premier excels at aggregating diverse perspectives
 BEDROCK_CHAIRMAN_MODEL = "us.amazon.nova-premier-v1:0"
+BEDROCK_TITLE_MODEL = "us.amazon.nova-lite-v1:0"  # Fast model for title generation
 
 # Active configuration based on provider
 if API_PROVIDER == "bedrock":
     COUNCIL_MODELS = BEDROCK_COUNCIL_MODELS
     CHAIRMAN_MODEL = BEDROCK_CHAIRMAN_MODEL
+    TITLE_MODEL = BEDROCK_TITLE_MODEL
 else:
     COUNCIL_MODELS = OPENROUTER_COUNCIL_MODELS
     CHAIRMAN_MODEL = OPENROUTER_CHAIRMAN_MODEL
+    TITLE_MODEL = OPENROUTER_TITLE_MODEL
 
 # Data directory for conversation storage
 DATA_DIR = "data/conversations"

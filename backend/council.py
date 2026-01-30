@@ -2,7 +2,7 @@
 
 import logging
 from typing import List, Dict, Any, Tuple
-from .config import COUNCIL_MODELS, CHAIRMAN_MODEL, API_PROVIDER
+from .config import COUNCIL_MODELS, CHAIRMAN_MODEL, TITLE_MODEL, API_PROVIDER
 
 logger = logging.getLogger("llm_council.council")
 
@@ -308,11 +308,11 @@ Title:"""
 
     messages = [{"role": "user", "content": title_prompt}]
 
-    # Use gemini-2.5-flash for title generation (fast and cheap)
-    response = await query_model("google/gemini-2.5-flash", messages, timeout=30.0)
+    logger.debug(f"Generating title with model: {TITLE_MODEL}")
+    response = await query_model(TITLE_MODEL, messages, timeout=30.0)
 
     if response is None:
-        # Fallback to a generic title
+        logger.warning("Title generation failed, using default")
         return "New Conversation"
 
     title = response.get('content', 'New Conversation').strip()
@@ -324,6 +324,7 @@ Title:"""
     if len(title) > 50:
         title = title[:47] + "..."
 
+    logger.info(f"Generated title: {title}")
     return title
 
 

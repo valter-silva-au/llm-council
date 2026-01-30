@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import Stage1 from './Stage1';
 import Stage2 from './Stage2';
 import Stage3 from './Stage3';
+import Artifacts from './Artifacts';
 import './ChatInterface.css';
 
 export default function ChatInterface({
@@ -119,6 +120,8 @@ export default function ChatInterface({
 
         <div ref={messagesEndRef} />
       </div>
+
+      <Artifacts conversation={conversation} />
 
       {!isLoading && (
         <form className="input-form" onSubmit={handleSubmit}>

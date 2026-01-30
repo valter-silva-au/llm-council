@@ -1,0 +1,155 @@
+.artifacts-panel {
+  background: #1a1a2e;
+  border-top: 1px solid #2d2d44;
+  transition: all 0.2s ease;
+}
+
+.artifacts-panel.collapsed {
+  padding: 8px 16px;
+}
+
+.artifacts-panel.expanded {
+  padding: 12px 16px;
+}
+
+.artifacts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+
+.artifacts-header:hover {
+  opacity: 0.9;
+}
+
+.artifacts-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #a0a0b0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.artifacts-title svg {
+  opacity: 0.7;
+}
+
+.artifacts-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.download-all-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: #2d2d44;
+  border: 1px solid #3d3d54;
+  border-radius: 4px;
+  color: #c0c0d0;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.download-all-btn:hover {
+  background: #3d3d54;
+  color: #fff;
+}
+
+.expand-icon {
+  color: #808090;
+  transition: transform 0.2s ease;
+}
+
+.expand-icon.rotated {
+  transform: rotate(180deg);
+}
+
+.artifacts-list {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.artifact-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #252538;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.artifact-item:hover {
+  background: #2d2d44;
+}
+
+.artifact-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.artifact-number {
+  color: #6366f1;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 24px;
+}
+
+.artifact-query {
+  color: #c0c0d0;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.artifact-download-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  background: transparent;
+  border: 1px solid #3d3d54;
+  border-radius: 4px;
+  color: #808090;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.artifact-download-btn:hover {
+  background: #3d3d54;
+  color: #fff;
+  border-color: #4d4d64;
+}
+
+/* Scrollbar styling */
+.artifacts-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.artifacts-list::-webkit-scrollbar-track {
+  background: #1a1a2e;
+}
+
+.artifacts-list::-webkit-scrollbar-thumb {
+  background: #3d3d54;
+  border-radius: 3px;
+}
+
+.artifacts-list::-webkit-scrollbar-thumb:hover {
+  background: #4d4d64;
+}
