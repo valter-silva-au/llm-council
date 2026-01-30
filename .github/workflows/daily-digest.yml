@@ -39,11 +39,47 @@ jobs:
           echo "${{ secrets.COUNCIL_API_KEY }}" > test_api_key.txt
         shell: bash
 
+      - name: Create .env file with OpenRouter API key
+        run: |
+          echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" > .env
+        shell: bash
+
+      - name: Start backend server
+        run: |
+          # Start the backend in the background
+          nohup uv run python -m backend.main > backend.log 2>&1 &
+
+          # Wait for backend to be ready (max 30 seconds)
+          echo "Waiting for backend to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8001/ > /dev/null 2>&1; then
+              echo "Backend is ready!"
+              break
+            fi
+            echo "Attempt $i/30: Backend not ready yet..."
+            sleep 1
+          done
+
+          # Check if backend is actually running
+          if ! curl -s http://localhost:8001/ > /dev/null 2>&1; then
+            echo "Backend failed to start! Logs:"
+            cat backend.log
+            exit 1
+          fi
+        shell: bash
+
       - name: Run RSS automation pipeline
         run: |
           uv run python -m rss_automation.main
         env:
           PYTHONIOENCODING: utf-8
+
+      - name: Stop backend server
+        if: always()
+        run: |
+          # Stop the backend server
+          pkill -f "python -m backend.main" || true
+        shell: bash
 
       - name: Configure Git
         run: |
@@ -78,6 +114,7 @@ jobs:
           name: debug-logs
           path: |
             rss_automation.log
+            backend.log
             intelligence_hub/
           retention-days: 7
 
