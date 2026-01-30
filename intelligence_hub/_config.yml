@@ -1,0 +1,29 @@
+# Cross-Disciplinary AI Intelligence Hub
+title: "AI Intelligence Hub"
+description: "AI-curated analysis from the LLM Council"
+baseurl: ""
+url: "https://yourusername.github.io"
+
+# Build settings
+markdown: kramdown
+theme: minima
+
+# Collections
+collections:
+  analyses:
+    output: true
+    permalink: /analysis/:year/:month/:day/:title/
+
+# Navigation
+header_pages:
+  - categories/tech.md
+  - categories/ai.md
+  - categories/security.md
+  - categories/business.md
+  - about.md
+
+# Council info
+council:
+  name: "LLM Council"
+  description: "Multi-model AI deliberation system"
+  api_url: "https://github.com/valter-silva-au/llm-council"

@@ -1,0 +1,80 @@
+name: Daily Intelligence Hub Digest
+
+on:
+  schedule:
+    # Run every day at 9 AM UTC (adjust as needed)
+    - cron: '0 9 * * *'
+  workflow_dispatch:  # Allow manual triggering
+
+permissions:
+  contents: write  # Required to commit and push changes
+
+jobs:
+  generate-digest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for proper commits
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: |
+          uv sync
+          uv pip install feedparser
+
+      - name: Create API key file
+        run: |
+          echo "${{ secrets.COUNCIL_API_KEY }}" > test_api_key.txt
+        shell: bash
+
+      - name: Run RSS automation pipeline
+        run: |
+          uv run python -m rss_automation.main
+        env:
+          PYTHONIOENCODING: utf-8
+
+      - name: Configure Git
+        run: |
+          git config user.name "LLM Council Bot"
+          git config user.email "llm-council-bot@users.noreply.github.com"
+
+      - name: Commit and push results
+        run: |
+          git add intelligence_hub/
+          git add rss_automation.log
+
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          # Commit with detailed message
+          git commit -m "Daily Intelligence Hub Digest - $(date -u +"%Y-%m-%d")
+
+          Automated analysis by the LLM Council
+
+          Co-Authored-By: LLM Council <noreply@llm-council.ai>"
+
+          git push
+        shell: bash
+
+      - name: Upload artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-logs
+          path: |
+            rss_automation.log
+            intelligence_hub/
+          retention-days: 7

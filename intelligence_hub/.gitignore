@@ -1,0 +1,25 @@
+# Jekyll build artifacts
+_site/
+.jekyll-cache/
+.jekyll-metadata
+
+# Sass
+.sass-cache/
+
+# Ruby
+Gemfile.lock
+*.gem
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

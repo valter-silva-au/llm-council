@@ -1,0 +1,25 @@
+{
+  "generated_at": "2026-01-30T19:21:13.034067",
+  "total_analyses": 2,
+  "categories": {
+    "tech": 2
+  },
+  "latest_analyses": [
+    {
+      "id": "3946df596f9a",
+      "title": "How Sequoia-backed Ethos reached the public market while rivals fell short",
+      "source": "TechCrunch",
+      "category": "tech",
+      "published": "2026-01-30T01:33:13",
+      "link": "https://techcrunch.com/2026/01/29/how-sequoia-backed-ethos-reached-the-public-market-while-rivals-fell-short/"
+    },
+    {
+      "id": "bfc55b6a9417",
+      "title": "The iPhone just had its best quarter ever",
+      "source": "TechCrunch",
+      "category": "tech",
+      "published": "2026-01-29T23:57:21",
+      "link": "https://techcrunch.com/2026/01/29/the-iphone-just-had-its-best-quarter-ever/"
+    }
+  ]
+}
