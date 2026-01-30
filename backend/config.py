@@ -2,9 +2,15 @@
 
 import os
 import logging
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env.dev if it exists, otherwise fall back to .env
+env_dev = Path(__file__).parent.parent / ".env.dev"
+if env_dev.exists():
+    load_dotenv(env_dev)
+else:
+    load_dotenv()
 
 # Logging configuration
 DEBUG_MODE = os.getenv("DEBUG", "false").lower() == "true"
@@ -20,6 +26,10 @@ logger = logging.getLogger("llm_council")
 
 # API Provider selection: "openrouter" or "bedrock"
 API_PROVIDER = os.getenv("API_PROVIDER", "openrouter")
+
+# Web Search configuration
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+ENABLE_WEB_SEARCH = bool(TAVILY_API_KEY)
 
 # OpenRouter configuration
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")

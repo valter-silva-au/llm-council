@@ -1,8 +1,9 @@
 """3-stage LLM Council orchestration."""
 
 import logging
-from typing import List, Dict, Any, Tuple
-from .config import COUNCIL_MODELS, CHAIRMAN_MODEL, TITLE_MODEL, API_PROVIDER
+from typing import List, Dict, Any, Tuple, Optional
+from .config import COUNCIL_MODELS, CHAIRMAN_MODEL, TITLE_MODEL, API_PROVIDER, ENABLE_WEB_SEARCH
+from .tavily_search import search_web, format_search_results
 
 logger = logging.getLogger("llm_council.council")
 
@@ -13,9 +14,35 @@ else:
     from .openrouter import query_models_parallel, query_model
 
 
+async def perform_web_search(query: str) -> Optional[str]:
+    """
+    Perform web search and format results for LLM context.
+
+    Args:
+        query: The user's question
+
+    Returns:
+        Formatted search results string, or None if search failed/disabled
+    """
+    if not ENABLE_WEB_SEARCH:
+        logger.debug("Web search disabled")
+        return None
+
+    logger.info("Performing web search for real-time information...")
+    search_results = await search_web(query, max_results=5)
+
+    if search_results:
+        formatted = format_search_results(search_results)
+        logger.info(f"Web search returned {len(search_results.get('results', []))} results")
+        return formatted
+
+    return None
+
+
 async def stage1_collect_responses(
     user_query: str,
-    conversation_history: List[Dict[str, str]] = None
+    conversation_history: List[Dict[str, str]] = None,
+    web_context: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     """
     Stage 1: Collect individual responses from all council models.
@@ -23,16 +50,32 @@ async def stage1_collect_responses(
     Args:
         user_query: The user's question
         conversation_history: Optional list of previous messages for multi-turn context
+        web_context: Optional web search results to include as context
 
     Returns:
         List of dicts with 'model' and 'response' keys
     """
+    # Build the user message with optional web context
+    if web_context:
+        enhanced_query = f"""I need you to answer the following question. I've included some recent web search results that may contain relevant, up-to-date information.
+
+{web_context}
+
+---
+
+**User Question:** {user_query}
+
+Please use the web search results above to provide accurate, current information in your response. Cite sources where appropriate."""
+        logger.info("Stage 1: Including web search context in query")
+    else:
+        enhanced_query = user_query
+
     # Build messages with history if provided
     if conversation_history:
-        messages = conversation_history + [{"role": "user", "content": user_query}]
+        messages = conversation_history + [{"role": "user", "content": enhanced_query}]
         logger.info(f"Stage 1: Using {len(conversation_history)} previous messages as context")
     else:
-        messages = [{"role": "user", "content": user_query}]
+        messages = [{"role": "user", "content": enhanced_query}]
         logger.info("Stage 1: Starting fresh (no conversation history)")
 
     logger.debug(f"Stage 1: Querying {len(COUNCIL_MODELS)} models")
@@ -346,8 +389,11 @@ async def run_full_council(
     logger.info(f"Query: {user_query[:100]}{'...' if len(user_query) > 100 else ''}")
     logger.info(f"Provider: {API_PROVIDER}, Models: {len(COUNCIL_MODELS)}, Chairman: {CHAIRMAN_MODEL}")
 
-    # Stage 1: Collect individual responses (with history for context)
-    stage1_results = await stage1_collect_responses(user_query, conversation_history)
+    # Perform web search for real-time information
+    web_context = await perform_web_search(user_query)
+
+    # Stage 1: Collect individual responses (with history and web context)
+    stage1_results = await stage1_collect_responses(user_query, conversation_history, web_context)
 
     # If no models responded successfully, return error
     if not stage1_results:
