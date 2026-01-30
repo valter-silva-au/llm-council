@@ -15,12 +15,15 @@ export default function Artifacts({ conversation }) {
       const msgIndex = conversation.messages.indexOf(msg);
       const userMsg = conversation.messages[msgIndex - 1];
       const query = userMsg?.content?.slice(0, 50) + (userMsg?.content?.length > 50 ? '...' : '') || 'Query';
+      const fullQuery = userMsg?.content || 'Query';
 
       return {
         id: index + 1,
         query,
+        fullQuery,
         response: msg.stage3.response,
         chairman: msg.stage3.model,
+        stage1: msg.stage1 || [],
         timestamp: new Date().toISOString(), // Would be better from backend
       };
     }) || [];
@@ -30,13 +33,22 @@ export default function Artifacts({ conversation }) {
   }
 
   const downloadArtifact = (artifact) => {
+    // Format Stage 1 individual responses
+    const stage1Content = artifact.stage1?.length > 0
+      ? `\n## Stage 1: Individual Model Responses\n\n${artifact.stage1.map((resp) =>
+          `### ${resp.model}\n\n${resp.response}`
+        ).join('\n\n---\n\n')}\n\n`
+      : '';
+
     const content = `# Council Response #${artifact.id}
 
-**Query:** ${artifact.query}
+**Query:** ${artifact.fullQuery}
 
 **Chairman:** ${artifact.chairman}
 
----
+${stage1Content}---
+
+## Final Council Answer (Stage 3)
 
 ${artifact.response}
 `;
@@ -76,18 +88,28 @@ ${artifact.response}
   };
 
   const downloadAllArtifacts = () => {
-    const content = artifacts.map((artifact, idx) => `# Council Response #${artifact.id}
+    const content = artifacts.map((artifact, idx) => {
+      // Format Stage 1 individual responses
+      const stage1Content = artifact.stage1?.length > 0
+        ? `\n## Stage 1: Individual Model Responses\n\n${artifact.stage1.map((resp) =>
+            `### ${resp.model}\n\n${resp.response}`
+          ).join('\n\n---\n\n')}\n\n`
+        : '';
 
-**Query:** ${artifact.query}
+      return `# Council Response #${artifact.id}
+
+**Query:** ${artifact.fullQuery}
 
 **Chairman:** ${artifact.chairman}
 
----
+${stage1Content}---
+
+## Final Council Answer (Stage 3)
 
 ${artifact.response}
 
-${idx < artifacts.length - 1 ? '\n---\n\n' : ''}`
-    ).join('');
+${idx < artifacts.length - 1 ? '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' : ''}`;
+    }).join('');
 
     const blob = new Blob([content], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
