@@ -21,8 +21,13 @@ logger = logging.getLogger(__name__)
 from . import storage
 from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings, perform_web_search
 from .polly import synthesize_speech
+from .api import api_app
 
-app = FastAPI(title="LLM Council API")
+app = FastAPI(title="LLM Council Web UI")
+
+# Mount external API
+app.mount("/api/v1", api_app)
+logger.info("Mounted external API at /api/v1")
 
 # Enable CORS for local development
 app.add_middleware(
