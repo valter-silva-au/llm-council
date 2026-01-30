@@ -7,7 +7,9 @@ on:
   workflow_dispatch:  # Allow manual triggering
 
 permissions:
-  contents: write  # Required to commit and push changes
+  contents: write      # Required to commit and push changes
+  pages: write         # Required to deploy to Pages
+  id-token: write      # Required for Pages deployment
 
 jobs:
   generate-digest:
@@ -78,3 +80,29 @@ jobs:
             rss_automation.log
             intelligence_hub/
           retention-days: 7
+
+  deploy-pages:
+    needs: generate-digest
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: master  # Get the latest commit with generated content
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: intelligence_hub/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
