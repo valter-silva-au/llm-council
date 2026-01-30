@@ -19,15 +19,31 @@ if (-not $Process) {
 Write-Host "Stopping frontend (PID: $ProcessId)..." -ForegroundColor Cyan
 
 try {
-    # Stop the npm process and its children (node/vite)
+    # Get child processes before killing parent
+    $ChildProcesses = Get-CimInstance Win32_Process | Where-Object { $_.ParentProcessId -eq $ProcessId }
+
+    # Stop the main process
     Stop-Process -Id $ProcessId -Force -ErrorAction SilentlyContinue
 
-    # Also kill any node processes on common Vite ports
+    # Stop any child processes (vite spawns child node processes)
+    foreach ($child in $ChildProcesses) {
+        Stop-Process -Id $child.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+
+    # Clean up any orphaned node processes on Vite ports
     foreach ($Port in @(5173, 5174, 5175)) {
-        $PortProcess = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue |
-            Select-Object -ExpandProperty OwningProcess -Unique
-        foreach ($p in $PortProcess) {
-            Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
+        try {
+            $Connections = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+            foreach ($conn in $Connections) {
+                $p = $conn.OwningProcess
+                # Only kill node.exe processes, not other things
+                $proc = Get-Process -Id $p -ErrorAction SilentlyContinue
+                if ($proc -and $proc.Name -eq "node") {
+                    Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
+                }
+            }
+        } catch {
+            # Ignore errors - port might not be in use
         }
     }
 

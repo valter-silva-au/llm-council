@@ -20,27 +20,38 @@ if (Test-Path $PidFile) {
 Write-Host "Starting LLM Council frontend..." -ForegroundColor Cyan
 
 try {
-    # Start the frontend using cmd.exe to run npm
-    $Process = Start-Process -FilePath "cmd.exe" `
-        -ArgumentList "/c", "cd /d `"$FrontendDir`" && npm run dev" `
-        -PassThru -NoNewWindow -RedirectStandardOutput "$ProjectRoot\scripts\.frontend.log" `
-        -RedirectStandardError "$ProjectRoot\scripts\.frontend.err"
+    # Start npm directly using Start-Job for background execution
+    # This avoids the cmd.exe console attachment issue
+    $LogFile = "$ProjectRoot\scripts\.frontend.log"
+    $ErrFile = "$ProjectRoot\scripts\.frontend.err"
+
+    # Clear previous logs
+    "" | Out-File $LogFile
+    "" | Out-File $ErrFile
+
+    # Start node/npm in a completely separate process
+    $Process = Start-Process -FilePath "node.exe" `
+        -ArgumentList "$FrontendDir\node_modules\vite\bin\vite.js", "--host" `
+        -WorkingDirectory $FrontendDir `
+        -PassThru -WindowStyle Hidden `
+        -RedirectStandardOutput $LogFile `
+        -RedirectStandardError $ErrFile
 
     # Save PID
     $Process.Id | Out-File $PidFile -NoNewline
 
     # Wait a moment for Vite to start
-    Start-Sleep -Seconds 4
+    Start-Sleep -Seconds 3
 
     if ($Process.HasExited) {
         Write-Host "Frontend failed to start. Check .frontend.err for details:" -ForegroundColor Red
-        Get-Content "$ProjectRoot\scripts\.frontend.err" | Select-Object -Last 10
+        Get-Content $ErrFile | Select-Object -Last 10
         exit 1
     }
 
     # Try to find the port from the log
     $Port = "5173"
-    $LogContent = Get-Content "$ProjectRoot\scripts\.frontend.log" -Raw -ErrorAction SilentlyContinue
+    $LogContent = Get-Content $LogFile -Raw -ErrorAction SilentlyContinue
     if ($LogContent -match "localhost:(\d+)") {
         $Port = $Matches[1]
     }
