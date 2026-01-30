@@ -1,0 +1,37 @@
+{
+  "timestamp": "2026-01-30T16:43:32.096321",
+  "date": "2026-01-30",
+  "time": "16-43-32",
+  "question_preview": "What are the top 3 benefits of using a multi-model AI council approach versus a single AI model?",
+  "models_participated": 4,
+  "chairman": "us.amazon.nova-premier-v1:0",
+  "web_search_enabled": true,
+  "label_to_model": {
+    "Response A": "us.anthropic.claude-opus-4-5-20251101-v1:0",
+    "Response B": "us.deepseek.r1-v1:0",
+    "Response C": "mistral.mistral-large-2407-v1:0",
+    "Response D": "us.amazon.nova-premier-v1:0"
+  },
+  "aggregate_rankings": [
+    {
+      "model": "mistral.mistral-large-2407-v1:0",
+      "average_rank": 4.0,
+      "rankings_count": 6
+    },
+    {
+      "model": "us.deepseek.r1-v1:0",
+      "average_rank": 4.83,
+      "rankings_count": 6
+    },
+    {
+      "model": "us.anthropic.claude-opus-4-5-20251101-v1:0",
+      "average_rank": 4.86,
+      "rankings_count": 7
+    },
+    {
+      "model": "us.amazon.nova-premier-v1:0",
+      "average_rank": 5.67,
+      "rankings_count": 6
+    }
+  ]
+}

@@ -10,6 +10,7 @@ from .search_providers import (
     search_with_fallback, format_search_results,
     SearchProvider, SearchProviderConfig
 )
+from .deliberations import save_deliberation
 
 logger = logging.getLogger("llm_council.council")
 
@@ -464,6 +465,21 @@ async def run_full_council(
         "label_to_model": label_to_model,
         "aggregate_rankings": aggregate_rankings
     }
+
+    # Save deliberation to archive
+    try:
+        delib_path = save_deliberation(
+            question=user_query,
+            stage1_results=stage1_results,
+            stage2_results=stage2_results,
+            stage3_result=stage3_result,
+            metadata=metadata,
+            web_context=web_context
+        )
+        logger.info(f"Deliberation archived to: {delib_path}")
+        metadata["deliberation_path"] = delib_path
+    except Exception as e:
+        logger.error(f"Failed to save deliberation: {e}", exc_info=True)
 
     logger.info(f"=== Council session complete ===")
     return stage1_results, stage2_results, stage3_result, metadata
