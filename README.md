@@ -6,6 +6,7 @@ The idea of this repo is that instead of asking a question to your favorite LLM 
 
 In a bit more detail, here is what happens when you submit a query:
 
+0. **Stage 0: Web Search (Optional)**. If configured, the system searches the web for real-time information and provides it as context to all models. If the primary provider fails, it automatically tries alternate providers.
 1. **Stage 1: First opinions**. The user query is given to all LLMs individually, and the responses are collected. The individual responses are shown in a "tab view", so that the user can inspect them all one by one.
 2. **Stage 2: Review**. Each individual LLM is given the responses of the other LLMs. Under the hood, the LLM identities are anonymized so that the LLM can't play favorites when judging their outputs. The LLM is asked to rank them in accuracy and insight.
 3. **Stage 3: Final response**. The designated Chairman of the LLM Council takes all of the model's responses and compiles them into a single final answer that is presented to the user.
@@ -32,15 +33,32 @@ npm install
 cd ..
 ```
 
-### 2. Configure API Key
+### 2. Configure API Keys
 
-Create a `.env` file in the project root:
+Create a `.env.dev` or `.env` file in the project root (or copy from `.env.example`):
+
+**Note:** The system prefers `.env.dev` over `.env` if both exist, making it easy to maintain separate dev/prod configurations.
 
 ```bash
+# Required: API provider
 OPENROUTER_API_KEY=sk-or-v1-...
+
+# Optional: Web search (only ONE needed for search to work)
+TAVILY_API_KEY=tvly-...           # Recommended - AI-specialized search
+SERPER_API_KEY=...                # Google Search API
+BRAVE_API_KEY=...                 # Privacy-focused search
+SERPAPI_API_KEY=...               # Google Search with rich snippets
 ```
 
-Get your API key at [openrouter.ai](https://openrouter.ai/). Make sure to purchase the credits you need, or sign up for automatic top up.
+**Main API Key:**
+Get your OpenRouter API key at [openrouter.ai](https://openrouter.ai/). Make sure to purchase the credits you need, or sign up for automatic top up.
+
+**Web Search (Optional):**
+Adding a search API key enables real-time information retrieval. The system tries providers in order until one succeeds:
+- **Tavily** (recommended): [tavily.com](https://tavily.com) - Specialized for AI with answer generation
+- **Serper**: [serper.dev](https://serper.dev) - Google Search API
+- **Brave**: [brave.com/search/api](https://brave.com/search/api/) - Privacy-focused
+- **SerpAPI**: [serpapi.com](https://serpapi.com) - Google Search with enhanced data
 
 ### 3. Configure Models (Optional)
 
@@ -59,12 +77,30 @@ CHAIRMAN_MODEL = "google/gemini-3-pro-preview"
 
 ## Running the Application
 
-**Option 1: Use the start script**
+**Windows (PowerShell):**
+```powershell
+# Start services
+.\scripts\start-backend.ps1
+.\scripts\start-frontend.ps1
+
+# Or restart everything (useful after code changes)
+.\scripts\restart-all.ps1
+
+# Check status
+.\scripts\status.ps1
+
+# View logs
+.\scripts\logs.ps1
+```
+
+See `scripts/README.md` for complete PowerShell script documentation.
+
+**Linux/Mac:**
 ```bash
 ./start.sh
 ```
 
-**Option 2: Run manually**
+**Or run manually:**
 
 Terminal 1 (Backend):
 ```bash
@@ -79,9 +115,20 @@ npm run dev
 
 Then open http://localhost:5173 in your browser.
 
+**⚠️ Important:** Backend code changes require restart to take effect. Use `.\scripts\restart-backend.ps1` (Windows) or restart the backend process manually.
+
 ## Tech Stack
 
-- **Backend:** FastAPI (Python 3.10+), async httpx, OpenRouter API
+- **Backend:** FastAPI (Python 3.10+), async httpx, OpenRouter API, multi-provider web search
 - **Frontend:** React + Vite, react-markdown for rendering
 - **Storage:** JSON files in `data/conversations/`
 - **Package Management:** uv for Python, npm for JavaScript
+
+## Features
+
+- **Multi-LLM Deliberation:** Get perspectives from multiple leading AI models
+- **Anonymous Peer Review:** Models rank each other without bias
+- **Web Search with Fallback:** Real-time information with automatic provider rotation
+- **Multi-turn Conversations:** Maintain context across multiple exchanges
+- **Conversation History:** Save and resume conversations
+- **Response Artifacts:** View individual model responses and rankings

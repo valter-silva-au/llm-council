@@ -25,10 +25,21 @@ $env:DEBUG = "true"
 Push-Location $ProjectRoot
 
 try {
-    # Start the backend in a new process
-    $Process = Start-Process -FilePath "python" -ArgumentList "-m", "uv", "run", "python", "-m", "backend.main" `
-        -PassThru -NoNewWindow -RedirectStandardOutput "$ProjectRoot\scripts\.backend.log" `
-        -RedirectStandardError "$ProjectRoot\scripts\.backend.err"
+    # Start the backend
+    # Check if uv is available and prefer it, otherwise use python directly
+    $UvPath = Get-Command uv -ErrorAction SilentlyContinue
+
+    if ($UvPath) {
+        Write-Host "Using uv runtime..." -ForegroundColor Cyan
+        $Process = Start-Process -FilePath "uv" -ArgumentList "run", "python", "-m", "backend.main" `
+            -PassThru -NoNewWindow -RedirectStandardOutput "$ProjectRoot\scripts\.backend.log" `
+            -RedirectStandardError "$ProjectRoot\scripts\.backend.err" -WorkingDirectory $ProjectRoot
+    } else {
+        Write-Host "Using direct python execution..." -ForegroundColor Cyan
+        $Process = Start-Process -FilePath "python" -ArgumentList "-m", "backend.main" `
+            -PassThru -NoNewWindow -RedirectStandardOutput "$ProjectRoot\scripts\.backend.log" `
+            -RedirectStandardError "$ProjectRoot\scripts\.backend.err" -WorkingDirectory $ProjectRoot
+    }
 
     # Save PID
     $Process.Id | Out-File $PidFile -NoNewline

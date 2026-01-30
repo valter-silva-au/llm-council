@@ -69,6 +69,11 @@ def _sync_query_model(
     Enables extended thinking for supported Claude models.
     """
     try:
+        # Log prompt size for debugging
+        total_chars = sum(len(msg.get('content', '')) for msg in messages)
+        estimated_tokens = total_chars // 4  # Rough estimate: 1 token ≈ 4 chars
+        logger.debug(f"Model {model}: Prompt size ~{total_chars} chars (~{estimated_tokens} tokens)")
+
         bedrock_messages = _convert_messages_to_bedrock_format(messages)
 
         # Build request parameters
@@ -89,6 +94,11 @@ def _sync_query_model(
             # Extended thinking requires higher max_tokens
             request_params["inferenceConfig"] = {
                 "maxTokens": 16000
+            }
+        else:
+            # For non-thinking models (like Nova), ensure adequate max tokens
+            request_params["inferenceConfig"] = {
+                "maxTokens": 8000
             }
 
         response = client.converse(**request_params)
@@ -121,7 +131,14 @@ def _sync_query_model(
         if enable_thinking and ('thinking' in error_str.lower() or 'validation' in error_str.lower()):
             logger.warning(f"Extended thinking not supported for {model}, retrying without it")
             return _sync_query_model(client, model, messages, enable_thinking=False)
+
+        # Log detailed error information
         logger.error(f"Error querying Bedrock model {model}: {e}", exc_info=True)
+        logger.error(f"Error type: {type(e).__name__}")
+        if hasattr(e, 'response'):
+            logger.error(f"Response metadata: {e.response.get('ResponseMetadata', {})}")
+            logger.error(f"Error code: {e.response.get('Error', {}).get('Code', 'Unknown')}")
+            logger.error(f"Error message: {e.response.get('Error', {}).get('Message', 'Unknown')}")
         return None
 
 

@@ -2,8 +2,14 @@
 
 import logging
 from typing import List, Dict, Any, Tuple, Optional
-from .config import COUNCIL_MODELS, CHAIRMAN_MODEL, TITLE_MODEL, API_PROVIDER, ENABLE_WEB_SEARCH
-from .tavily_search import search_web, format_search_results
+from .config import (
+    COUNCIL_MODELS, CHAIRMAN_MODEL, TITLE_MODEL, API_PROVIDER, ENABLE_WEB_SEARCH,
+    TAVILY_API_KEY, SERPER_API_KEY, BRAVE_API_KEY, SERPAPI_API_KEY
+)
+from .search_providers import (
+    search_with_fallback, format_search_results,
+    SearchProvider, SearchProviderConfig
+)
 
 logger = logging.getLogger("llm_council.council")
 
@@ -16,7 +22,7 @@ else:
 
 async def perform_web_search(query: str) -> Optional[str]:
     """
-    Perform web search and format results for LLM context.
+    Perform web search with automatic fallback between providers.
 
     Args:
         query: The user's question
@@ -24,18 +30,40 @@ async def perform_web_search(query: str) -> Optional[str]:
     Returns:
         Formatted search results string, or None if search failed/disabled
     """
+    logger.info(f"[SEARCH] perform_web_search called with ENABLE_WEB_SEARCH={ENABLE_WEB_SEARCH}")
+
     if not ENABLE_WEB_SEARCH:
         logger.debug("Web search disabled")
         return None
 
+    # Configure available search providers in priority order
+    providers = [
+        SearchProviderConfig(SearchProvider.TAVILY, TAVILY_API_KEY),
+        SearchProviderConfig(SearchProvider.SERPER, SERPER_API_KEY),
+        SearchProviderConfig(SearchProvider.BRAVE, BRAVE_API_KEY),
+        SearchProviderConfig(SearchProvider.SERPAPI, SERPAPI_API_KEY),
+    ]
+
+    logger.info(f"[SEARCH] Configured {len(providers)} providers: {[p.provider.value for p in providers]}")
+    enabled_providers = [p for p in providers if p.enabled]
+    logger.info(f"[SEARCH] Enabled providers: {[p.provider.value for p in enabled_providers]}")
+
     logger.info("Performing web search for real-time information...")
-    search_results = await search_web(query, max_results=5)
+
+    try:
+        search_results = await search_with_fallback(providers, query, max_results=5)
+    except Exception as e:
+        logger.error(f"[SEARCH] Exception during search: {e}", exc_info=True)
+        return None
 
     if search_results:
         formatted = format_search_results(search_results)
-        logger.info(f"Web search returned {len(search_results.get('results', []))} results")
+        provider = search_results.get("provider", "unknown")
+        results_count = len(search_results.get('results', []))
+        logger.info(f"[SEARCH] Web search via {provider} returned {results_count} results")
         return formatted
 
+    logger.warning("[SEARCH] All search providers failed")
     return None
 
 
@@ -230,14 +258,29 @@ Provide a clear, well-reasoned final answer that represents the council's collec
 
     messages = [{"role": "user", "content": chairman_prompt}]
 
+    prompt_length = len(chairman_prompt)
     logger.info(f"Stage 3: Chairman ({CHAIRMAN_MODEL}) synthesizing final response")
+    logger.info(f"Stage 3: Chairman prompt is {prompt_length} characters (~{prompt_length // 4} tokens)")
 
-    # Query the chairman model
-    response = await query_model(CHAIRMAN_MODEL, messages)
+    # Query the chairman model with extended timeout for large context
+    # Chairman needs more time to process all Stage 1 + Stage 2 content
+    timeout = 180.0  # 3 minutes instead of default 2 minutes
+    logger.debug(f"Stage 3: Using timeout of {timeout}s for Chairman synthesis")
+
+    try:
+        response = await query_model(CHAIRMAN_MODEL, messages, timeout=timeout)
+    except Exception as e:
+        logger.error(f"Stage 3: Exception querying Chairman: {e}", exc_info=True)
+        response = None
 
     if response is None:
         # Fallback if chairman fails
         logger.error(f"Stage 3: Chairman model {CHAIRMAN_MODEL} failed to respond!")
+        logger.error(f"Stage 3: This could be due to:")
+        logger.error(f"  - Timeout (prompt was {prompt_length} chars)")
+        logger.error(f"  - Model not available in region")
+        logger.error(f"  - AWS quota/throttling limits")
+        logger.error(f"  - Context window exceeded")
         return {
             "model": CHAIRMAN_MODEL,
             "response": "Error: Unable to generate final synthesis."

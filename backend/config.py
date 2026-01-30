@@ -8,9 +8,18 @@ from dotenv import load_dotenv
 # Load .env.dev if it exists, otherwise fall back to .env
 env_dev = Path(__file__).parent.parent / ".env.dev"
 if env_dev.exists():
-    load_dotenv(env_dev)
+    load_dotenv(env_dev, override=True)
 else:
-    load_dotenv()
+    load_dotenv(override=True)
+
+# Explicitly set AWS credentials as environment variables for boto3
+# This ensures boto3 uses these credentials even when running as a daemon
+if os.getenv("AWS_ACCESS_KEY_ID"):
+    os.environ["AWS_ACCESS_KEY_ID"] = os.getenv("AWS_ACCESS_KEY_ID")
+if os.getenv("AWS_SECRET_ACCESS_KEY"):
+    os.environ["AWS_SECRET_ACCESS_KEY"] = os.getenv("AWS_SECRET_ACCESS_KEY")
+if os.getenv("AWS_SESSION_TOKEN"):
+    os.environ["AWS_SESSION_TOKEN"] = os.getenv("AWS_SESSION_TOKEN")
 
 # Logging configuration
 DEBUG_MODE = os.getenv("DEBUG", "false").lower() == "true"
@@ -27,9 +36,14 @@ logger = logging.getLogger("llm_council")
 # API Provider selection: "openrouter" or "bedrock"
 API_PROVIDER = os.getenv("API_PROVIDER", "openrouter")
 
-# Web Search configuration
+# Web Search configuration - Multiple providers with fallback
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
-ENABLE_WEB_SEARCH = bool(TAVILY_API_KEY)
+SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+BRAVE_API_KEY = os.getenv("BRAVE_API_KEY")
+SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY")
+
+# Enable web search if ANY provider has a key
+ENABLE_WEB_SEARCH = any([TAVILY_API_KEY, SERPER_API_KEY, BRAVE_API_KEY, SERPAPI_API_KEY])
 
 # OpenRouter configuration
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")

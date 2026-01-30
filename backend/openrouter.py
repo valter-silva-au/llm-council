@@ -48,7 +48,11 @@ async def query_model(
 
     # Enable web search for real-time information
     if ENABLE_WEB_SEARCH:
-        payload["plugins"] = [{"id": "web"}]
+        payload["plugins"] = {
+            "web_search": {
+                "enabled": True
+            }
+        }
         logger.debug(f"Web search enabled for {model}")
 
     # Check if model supports extended reasoning

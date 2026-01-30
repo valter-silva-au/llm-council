@@ -1,5 +1,6 @@
 """FastAPI backend for LLM Council."""
 
+import logging
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -9,8 +10,16 @@ import uuid
 import json
 import asyncio
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
+
 from . import storage
-from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings
+from .council import run_full_council, generate_conversation_title, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings, perform_web_search
 from .polly import synthesize_speech
 
 app = FastAPI(title="LLM Council API")
@@ -180,6 +189,8 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
 
     async def event_generator():
         try:
+            logger.info(f"Stream: Starting council for query: {request.content[:100]}")
+
             # Add user message
             storage.add_user_message(conversation_id, request.content)
 
@@ -188,23 +199,38 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
             if is_first_message:
                 title_task = asyncio.create_task(generate_conversation_title(request.content))
 
-            # Stage 1: Collect responses (with conversation history for context)
+            # Perform web search for real-time information
+            logger.info("Stream: Performing web search...")
+            web_context = await perform_web_search(request.content)
+            if web_context:
+                logger.info(f"Stream: Web search returned {len(web_context)} chars")
+            else:
+                logger.info("Stream: Web search returned None")
+
+            # Stage 1: Collect responses (with conversation history and web context)
+            logger.info("Stream: Starting Stage 1...")
             yield f"data: {json.dumps({'type': 'stage1_start'})}\n\n"
             stage1_results = await stage1_collect_responses(
                 request.content,
-                conversation_history if conversation_history else None
+                conversation_history if conversation_history else None,
+                web_context
             )
+            logger.info(f"Stream: Stage 1 complete - {len(stage1_results)} models responded")
             yield f"data: {json.dumps({'type': 'stage1_complete', 'data': stage1_results})}\n\n"
 
             # Stage 2: Collect rankings
+            logger.info("Stream: Starting Stage 2...")
             yield f"data: {json.dumps({'type': 'stage2_start'})}\n\n"
             stage2_results, label_to_model = await stage2_collect_rankings(request.content, stage1_results)
             aggregate_rankings = calculate_aggregate_rankings(stage2_results, label_to_model)
+            logger.info(f"Stream: Stage 2 complete - {len(stage2_results)} rankings collected")
             yield f"data: {json.dumps({'type': 'stage2_complete', 'data': stage2_results, 'metadata': {'label_to_model': label_to_model, 'aggregate_rankings': aggregate_rankings}})}\n\n"
 
             # Stage 3: Synthesize final answer
+            logger.info("Stream: Starting Stage 3...")
             yield f"data: {json.dumps({'type': 'stage3_start'})}\n\n"
             stage3_result = await stage3_synthesize_final(request.content, stage1_results, stage2_results)
+            logger.info(f"Stream: Stage 3 complete - Chairman: {stage3_result.get('model', 'unknown')}")
             yield f"data: {json.dumps({'type': 'stage3_complete', 'data': stage3_result})}\n\n"
 
             # Wait for title generation if it was started
@@ -226,6 +252,7 @@ async def send_message_stream(conversation_id: str, request: SendMessageRequest)
 
         except Exception as e:
             # Send error event
+            logger.error(f"Stream: Exception occurred: {e}", exc_info=True)
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 
     return StreamingResponse(
