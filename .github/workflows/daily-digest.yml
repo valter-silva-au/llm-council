@@ -39,9 +39,19 @@ jobs:
           echo "${{ secrets.COUNCIL_API_KEY }}" > test_api_key.txt
         shell: bash
 
-      - name: Create .env file with OpenRouter API key
+      - name: Create .env file with AWS Bedrock credentials
         run: |
-          echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" > .env
+          cat > .env << EOF
+          API_PROVIDER=${{ secrets.API_PROVIDER }}
+          AWS_REGION=${{ secrets.AWS_REGION }}
+          AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_SESSION_TOKEN=${{ secrets.AWS_SESSION_TOKEN }}
+          AWS_BEARER_TOKEN_BEDROCK=${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}
+          TAVILY_API_KEY=${{ secrets.TAVILY_API_KEY }}
+          BRAVE_API_KEY=${{ secrets.BRAVE_API_KEY }}
+          DEBUG=true
+          EOF
         shell: bash
 
       - name: Start backend server

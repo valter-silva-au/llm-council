@@ -1,6 +1,25 @@
 # Required GitHub Secrets for RSS Automation
 
-The RSS automation workflow requires two secrets to be configured in GitHub:
+The RSS automation workflow requires multiple secrets to be configured in GitHub.
+
+## Quick Setup (Recommended)
+
+Use the provided script to add all secrets at once:
+
+**PowerShell (Windows):**
+```powershell
+.\add_github_secrets.ps1
+```
+
+**Bash (Linux/Mac):**
+```bash
+chmod +x add_github_secrets.sh
+./add_github_secrets.sh
+```
+
+## Manual Setup
+
+If you prefer to add secrets manually, here's what's required:
 
 ## 1. COUNCIL_API_KEY
 
@@ -23,43 +42,70 @@ python manage_api_keys.py
 5. Value: Paste the `llmc_xxxxx...` key
 6. Click "Add secret"
 
-## 2. OPENROUTER_API_KEY
+## 2. AWS Bedrock Credentials
 
-**Purpose:** Used by the backend to call OpenRouter API for LLM models.
+**Purpose:** Used by the backend to call AWS Bedrock for LLM models.
 
-**How to get it:**
-1. Go to https://openrouter.ai/
-2. Sign in and go to Keys
-3. Create a new API key
-4. Copy the key (starts with `sk-or-v1-`)
+**Required secrets:**
+- `API_PROVIDER` - Set to "bedrock"
+- `AWS_REGION` - AWS region (e.g., "us-west-2")
+- `AWS_ACCESS_KEY_ID` - Your AWS access key
+- `AWS_SECRET_ACCESS_KEY` - Your AWS secret key
+- `AWS_SESSION_TOKEN` - Your AWS session token (if using temporary credentials)
+- `AWS_BEARER_TOKEN_BEDROCK` - Bedrock-specific bearer token
+
+**How to get AWS credentials:**
+1. Go to AWS Console → IAM
+2. Create or use existing credentials with Bedrock access
+3. Generate access keys
 
 **How to add to GitHub:**
+Use the provided script (recommended) or add each secret manually:
 1. Go to your repository on GitHub
 2. Settings → Secrets and variables → Actions
-3. Click "New repository secret"
-4. Name: `OPENROUTER_API_KEY`
-5. Value: Paste your OpenRouter API key
-6. Click "Add secret"
+3. Click "New repository secret" for each credential
+4. Add all AWS-related secrets listed above
+
+## 3. Web Search API Keys
+
+**Required for council web search functionality:**
+- `TAVILY_API_KEY` - Tavily search API
+- `BRAVE_API_KEY` - Brave search API
+
+## 4. Other Optional API Keys
+
+These are optional but recommended:
+- `YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`
+- `GOOGLE_AI_API_KEY`
+- `PERPLEXITY_API_KEY`
+- `FIRECRAWL_API_KEY`
+- `JINA_API_KEY`
+- `KAGI_API_KEY`
+- `OPENWEATHER_API_KEY`
 
 ## Verification
 
-After adding both secrets, you should see them listed in:
+After adding all secrets, you should see them listed in:
 - Settings → Secrets and variables → Actions → Repository secrets
 
-Both should show as "Updated [timestamp]" but the values remain hidden.
+All secrets should show as "Updated [timestamp]" but the values remain hidden.
+
+Expected secrets count: ~15+ (depending on which optional keys you add)
 
 ## What the Workflow Does
 
 With these secrets configured, the workflow will:
 
-1. **Start backend server** using `OPENROUTER_API_KEY`
-   - Loads environment variables
+1. **Start backend server** using AWS Bedrock credentials
+   - Loads all environment variables (.env file)
+   - Configures AWS Bedrock access
    - Starts FastAPI server on localhost:8001
    - Waits for server to be ready
 
 2. **Run RSS automation** using `COUNCIL_API_KEY`
    - Authenticates API calls to the council
-   - Fetches and analyzes articles
+   - Fetches articles from RSS feeds
+   - Analyzes with council (using Bedrock models)
    - Generates Jekyll site content
 
 3. **Deploy to Pages**
@@ -79,8 +125,10 @@ With these secrets configured, the workflow will:
 To test the full pipeline locally before triggering the workflow:
 
 ```bash
-# Make sure you have both keys set up
-echo "OPENROUTER_API_KEY=sk-or-v1-xxx..." > .env
+# Make sure you have your .env file set up with AWS credentials
+# (Should already exist with API_PROVIDER=bedrock, AWS credentials, etc.)
+
+# Make sure you have the council API key
 echo "llmc_xxx..." > test_api_key.txt
 
 # Start backend
@@ -98,16 +146,23 @@ ls intelligence_hub/_posts/
 **If workflow fails with "Connection refused":**
 - Backend didn't start properly
 - Check backend.log in workflow artifacts
-- Verify OPENROUTER_API_KEY is set correctly
+- Verify AWS credentials are set correctly
 
 **If workflow fails with "401 Unauthorized":**
 - COUNCIL_API_KEY is invalid or expired
-- Regenerate the key and update the secret
+- Regenerate the key: `python manage_api_keys.py`
+- Update the secret in GitHub
 
 **If workflow fails with "No analyses produced":**
-- Backend couldn't reach OpenRouter
-- Check OPENROUTER_API_KEY is valid
-- Verify you have OpenRouter credits
+- Backend couldn't reach AWS Bedrock
+- Check AWS credentials are valid and not expired
+- Verify AWS session token hasn't expired (temporary credentials)
+- Check that your AWS account has Bedrock access enabled
+
+**If workflow fails with AWS auth errors:**
+- AWS session tokens expire (usually 1-12 hours)
+- Regenerate AWS credentials and update secrets
+- Consider using long-term IAM credentials instead
 
 ## Monitoring
 
