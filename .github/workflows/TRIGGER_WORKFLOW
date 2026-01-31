@@ -1,4 +1,4 @@
 # Workflow trigger file
 # Modify this file to manually trigger the daily digest workflow
-# Last triggered: 2026-01-30 21:20:00 UTC
-# Run ID: added debug logging for API key validation
+# Last triggered: 2026-01-31 14:30:00 UTC
+# Run ID: fixed API key database structure - removed nested "keys" wrapper

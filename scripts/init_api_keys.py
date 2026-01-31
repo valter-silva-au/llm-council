@@ -11,16 +11,18 @@ api_key = Path("test_api_key.txt").read_text().strip()
 key_hash = hashlib.sha256(api_key.encode()).hexdigest()
 
 # Create API keys database
+# NOTE: Structure must match backend/api_keys.py - hash at top level, not nested under "keys"
 api_keys_db = {
-    "keys": {
-        key_hash: {
-            "name": "GitHub Actions",
-            "description": "API key for GitHub Actions workflow",
-            "created_at": "2026-01-30T00:00:00",
-            "rate_limit": 100,
-            "rate_window": 3600,
-            "usage": {}
-        }
+    key_hash: {
+        "name": "GitHub Actions",
+        "description": "API key for GitHub Actions workflow",
+        "created_at": "2026-01-30T00:00:00",
+        "rate_limit": 100,
+        "rate_window": 3600,
+        "usage": {},
+        "request_count": 0,
+        "last_used": None,
+        "enabled": True
     }
 }
 
