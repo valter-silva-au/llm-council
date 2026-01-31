@@ -177,9 +177,10 @@ PYTHON_EOF
     needs: generate-digest
     runs-on: ubuntu-latest
 
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    # Note: GitHub Pages deployment environment
+    # environment:
+    #   name: github-pages
+    #   url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout repository
