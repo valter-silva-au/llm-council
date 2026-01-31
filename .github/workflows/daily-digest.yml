@@ -45,7 +45,16 @@ jobs:
         shell: bash
 
       - name: Initialize API keys database
-        run: python3 scripts/init_api_keys.py
+        run: |
+          python3 scripts/init_api_keys.py
+          echo "Checking API keys database..."
+          cat data/api_keys.json
+          echo ""
+          echo "Checking test_api_key.txt (first 30 chars)..."
+          head -c 30 test_api_key.txt && echo "..."
+          echo ""
+          echo "Computing hash of API key..."
+          python3 -c "import hashlib; key = open('test_api_key.txt').read().strip(); print('Hash:', hashlib.sha256(key.encode()).hexdigest())"
 
       - name: Create .env file with AWS Bedrock credentials
         run: |
@@ -134,6 +143,8 @@ jobs:
             rss_automation.log
             backend.log
             intelligence_hub/
+            data/
+            test_api_key.txt
           retention-days: 7
 
   deploy-pages:
