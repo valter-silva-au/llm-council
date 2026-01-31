@@ -1,4 +1,4 @@
 # Workflow trigger file
 # Modify this file to manually trigger the daily digest workflow
-# Last triggered: 2026-01-30 20:50:00 UTC
-# Run ID: using separate Python script for API key init
+# Last triggered: 2026-01-30 21:10:00 UTC
+# Run ID: fresh API key regenerated and updated in GitHub secrets

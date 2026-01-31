@@ -29,4 +29,4 @@ Path("data").mkdir(exist_ok=True)
 with open("data/api_keys.json", "w") as f:
     json.dump(api_keys_db, f, indent=2)
 
-print("✓ API key added to database")
+print("[OK] API key added to database")
